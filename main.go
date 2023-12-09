@@ -13,10 +13,10 @@ func main() {
 
 	cmd := exec.Command(command, args...)
 
-    cmd.Stdout = os.Stdout
-    cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-	    log.Fatalf("Go error when running command: %v", err)
-    }
+		log.Fatalf("Go error when running command: %v", err)
+	}
 }
