@@ -84,12 +84,6 @@ func main() {
 
 	if err := cmd.Run(); err != nil {
 		log.Printf("Program failed %s", err.Error())
-		switch err := err.(type) {
-		case *exec.ExitError:
-			os.Exit(err.ExitCode())
-		default:
-			log.Printf("Child process exited abnormally: %v", err)
-			os.Exit(255)
-		}
+		os.Exit(cmd.ProcessState.ExitCode())
 	}
 }
