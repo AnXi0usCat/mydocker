@@ -72,7 +72,7 @@ func main() {
 
 	err = syscall.Chroot(tmp)
 	if err != nil {
-		log.Fatalf("Failed to create a new root %v", err)
+		log.Fatalf("Failed to chroot in the temp directory %v", err)
 	}
 
 	commandChRoot = filepath.Join("/", filepath.Base(command))
