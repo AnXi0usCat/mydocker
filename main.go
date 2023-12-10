@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"syscall"
 )
 
 func copyTo(to, from string) error {
@@ -48,7 +50,33 @@ func main() {
 	command := os.Args[3]
 	args := os.Args[4:len(os.Args)]
 
-	cmd := exec.Command(command, args...)
+	// create a chroot jail
+	tmp, err := os.MkdirTemp(os.TempDir(), "*")
+	if err != nil {
+		log.Fatalf("Failed to create a new root directory %v", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	// find executable for the command we are tring to Run
+	command, err = exec.LookPath(command)
+	if err != nil {
+		log.Fatalf("Failed to find executable of the command %v", err)
+	}
+
+	// copy the command executable to chroot jail
+	commandChRoot := filepath.Join(tmp, filepath.Base(command))
+	err = copyTo(commandChRoot, command)
+	if err != nil {
+		log.Fatalf("Failed to copy the command %v", err)
+	}
+
+	err = syscall.Chroot(tmp)
+	if err != nil {
+		log.Fatalf("Failed to create a new root %v", err)
+	}
+
+	commandChRoot = filepath.Join("/", filepath.Base(command))
+	cmd := exec.Command(commandChRoot, args...)
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
