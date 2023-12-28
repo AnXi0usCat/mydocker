@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 func createRootDir() (string, error) {
@@ -54,13 +55,15 @@ func runCommand(jail string, command string, args []string) error {
 	chRootArgs = append(chRootArgs, args...)
 
 	cmd := exec.Command("chroot", chRootArgs...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags:   syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID,
+	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	err := cmd.Run()
 	if err != nil {
-		log.Printf("failed to run chroot cmd: %v, args %v", command, args)
 		return err
 	}
 	return nil
