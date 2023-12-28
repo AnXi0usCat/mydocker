@@ -40,7 +40,7 @@ func copyDir(command string, jail string) {
     }
 }
 
-func runCommand(jail string, command string, args []string) error {
+func runCommand(jail string, command string, args []string) (*exec.Cmd, error) {
     chRootArgs := []string {jail, command}
     chRootArgs = append(chRootArgs, args...)
 
@@ -52,14 +52,14 @@ func runCommand(jail string, command string, args []string) error {
     err := cmd.Run()
     if err != nil {
         log.Printf("failed to run chroot cmd: %v, args %v", command, args)
-        return err
+        return nil, err
     }
-    return nil
+    return cmd, nil
 }
 
 // Usage: ./mydocker run <image> <command> <arg1> <arg2> ...
 func main() {
-    log.Printf("statrting the command")
+    log.Printf("starting the command")
 	command := os.Args[3]
 	args := os.Args[4:len(os.Args)]
 
@@ -68,7 +68,7 @@ func main() {
         panic("could not create a target directory, stopping execution")
     }
     copyDir(command, jail)
-    err = runCommand(jail, command, args)
+    cmd, err := runCommand(jail, command, args)
 
 	if err != nil {
 		log.Printf("Program failed %s", err.Error())
