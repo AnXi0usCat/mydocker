@@ -66,9 +66,6 @@ func run() error {
 	}
 	copyDir(command, jail)
 
-	chRootArgs := []string{jail, command}
-	chRootArgs = append(chRootArgs, args...)
-
 	cmd := exec.Command("/proc/self/exe", append([]string{"child", image, command}, args...)...)
 
 	// don't share PIDS's and hostname with the host
