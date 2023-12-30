@@ -90,9 +90,9 @@ func child() error {
 	fmt.Printf("Running command %v with args %v as %v\n", os.Args[3], os.Args[4:len(os.Args)], os.Getpid())
 	// isolate child process hostname
 	syscall.Sethostname([]byte("container"))
-    // isolate filsystem
-    syscall.Chroot(jail)
-    syscall.Chdir("/")
+	// isolate filsystem
+	syscall.Chroot(jail)
+	syscall.Chdir("/")
 	// isolate the process PIDS
 	syscall.Mount("proc", "proc", "proc", 0, "")
 
@@ -102,7 +102,7 @@ func child() error {
 	cmd.Stderr = os.Stderr
 
 	err := cmd.Run()
-    syscall.Unmount("proc", 0)
+	syscall.Unmount("proc", 0)
 
 	if err != nil {
 		return err
