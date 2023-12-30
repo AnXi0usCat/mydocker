@@ -11,8 +11,9 @@ import (
 	"syscall"
 )
 
+const jail = "jail"
+
 func createRootDir() (string, error) {
-	jail := "jail"
 	command := exec.Command("mkdir", "-p", jail)
 	err := command.Run()
 	if err != nil {
@@ -68,7 +69,7 @@ func run() error {
 	chRootArgs := []string{jail, command}
 	chRootArgs = append(chRootArgs, args...)
 
-	cmd := exec.Command("/proc/self/exe", append([]string{"child", image}, chRootArgs...)...)
+	cmd := exec.Command("/proc/self/exe", append([]string{"child", image, command}, args...)...)
 
 	// don't share PIDS's and hostname with the host
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -86,13 +87,16 @@ func run() error {
 }
 
 func child() error {
-	fmt.Printf("Running command %v with args %v as %v\n", os.Args[4], os.Args[5:len(os.Args)], os.Getpid())
+	fmt.Printf("Running command %v with args %v as %v\n", os.Args[3], os.Args[4:len(os.Args)], os.Getpid())
 	// isolate child process hostname
 	syscall.Sethostname([]byte("container"))
+    // isolate filsystem
+    syscall.Chroot(jail)
+    syscall.Chdir("/")
 	// isolate the process PIDS
 	syscall.Mount("proc", "proc", "proc", 0, "")
 
-	cmd := exec.Command("chroot", os.Args[3:len(os.Args)]...)
+	cmd := exec.Command(os.Args[3], os.Args[4:len(os.Args)]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
