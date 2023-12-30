@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -50,14 +51,45 @@ func copyDir(command string, jail string) {
 	}
 }
 
-func runCommand(jail string, command string, args []string) error {
+func run() error {
+	image := os.Args[2]
+	command := os.Args[3]
+	args := os.Args[4:len(os.Args)]
+
+	jail, err := createRootDir()
+	if err != nil {
+		log.Printf("could not create a target directory, stopping execution")
+		return err
+	}
+	copyDir(command, jail)
+	fmt.Printf("Running command %v with args %v\n", command, args)
+
 	chRootArgs := []string{jail, command}
 	chRootArgs = append(chRootArgs, args...)
 
-	cmd := exec.Command("chroot", chRootArgs...)
+	cmd := exec.Command("/proc/self/exe", append([]string{"child", image}, chRootArgs...)...)
+
+	// don't share PIDS's and hostname with the host
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID,
 	}
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func child() error {
+	fmt.Printf("Running command %v with args %v\n", os.Args[4], os.Args[5:len(os.Args)])
+	// isolate child process hostname
+	syscall.Sethostname([]byte("container"))
+
+	cmd := exec.Command("chroot", os.Args[3:len(os.Args)]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -72,15 +104,16 @@ func runCommand(jail string, command string, args []string) error {
 // Usage: ./mydocker run <image> <command> <arg1> <arg2> ...
 func main() {
 	log.Printf("starting the command")
-	command := os.Args[3]
-	args := os.Args[4:len(os.Args)]
+	var err error
 
-	jail, err := createRootDir()
-	if err != nil {
-		panic("could not create a target directory, stopping execution")
+	switch os.Args[1] {
+	case "run":
+		run()
+	case "child":
+		err = child()
+	default:
+		panic("Undefined command " + os.Args[1])
 	}
-	copyDir(command, jail)
-	err = runCommand(jail, command, args)
 
 	if err != nil {
 		log.Printf("Program failed %s", err.Error())
