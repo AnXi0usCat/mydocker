@@ -56,13 +56,14 @@ func run() error {
 	command := os.Args[3]
 	args := os.Args[4:len(os.Args)]
 
+	fmt.Printf("Running command %v with args %v as %v\n", command, args, os.Getgid())
+
 	jail, err := createRootDir()
 	if err != nil {
 		log.Printf("could not create a target directory, stopping execution")
 		return err
 	}
 	copyDir(command, jail)
-	fmt.Printf("Running command %v with args %v as %v\n", command, args, os.Getgid())
 
 	chRootArgs := []string{jail, command}
 	chRootArgs = append(chRootArgs, args...)
@@ -88,6 +89,8 @@ func child() error {
 	fmt.Printf("Running command %v with args %v as %v\n", os.Args[4], os.Args[5:len(os.Args)], os.Getpid())
 	// isolate child process hostname
 	syscall.Sethostname([]byte("container"))
+	// isolate the process PIDS
+	syscall.Mount("proc", "proc", "proc", 0, "")
 
 	cmd := exec.Command("chroot", os.Args[3:len(os.Args)]...)
 	cmd.Stdin = os.Stdin
