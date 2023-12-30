@@ -98,6 +98,8 @@ func child() error {
 	cmd.Stderr = os.Stderr
 
 	err := cmd.Run()
+    syscall.Unmount("proc", 0)
+
 	if err != nil {
 		return err
 	}
