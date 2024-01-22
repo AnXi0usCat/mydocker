@@ -1,5 +1,13 @@
 package main
 
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+)
+
 const (
 	authUrl     = "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/%s:pull"
 	manifestUrl = "https://registry.hub.docker.com/v2/library/%s/manifests/%s"
@@ -25,4 +33,21 @@ type DockerManifest struct {
 		Digest    string `json:"digest"`
 		Size      int    `json:"size"`
 	} `json:"layers"`
+}
+
+func Authenticate(image string) *DockerAuth {
+	url := fmt.Sprintf(authUrl, image)
+	response, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer response.Body.Close()
+	buf, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var auth DockerAuth
+	json.Unmarshal(buf, &auth)
+	return &auth
+
 }
