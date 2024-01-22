@@ -126,7 +126,6 @@ func main() {
 		switch e := err.(type) {
 		case *exec.ExitError:
 			os.Exit(e.ExitCode())
-
 		default:
 			panic(err)
 		}
