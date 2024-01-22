@@ -51,3 +51,28 @@ func Authenticate(image string) *DockerAuth {
 	return &auth
 
 }
+
+func GetManifest(auth *DockerAuth, image, version string) *DockerManifest {
+	url := fmt.Sprintf(manifestUrl, image, version)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json")
+	req.Header.Set("Authorization", "Bearer "+auth.Token)
+
+	resp, err := client.Do(&req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var manifest DockerManifest
+	json.Unmarshal(buf, &manifest)
+	return &manifest
+}
