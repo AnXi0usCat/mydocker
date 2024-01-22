@@ -62,7 +62,7 @@ func GetManifest(auth *DockerAuth, image, version string) *DockerManifest {
 	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json")
 	req.Header.Set("Authorization", "Bearer "+auth.Token)
 
-	resp, err := client.Do(&req)
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal(err)
 	}
