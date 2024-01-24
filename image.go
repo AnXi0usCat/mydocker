@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 )
 
 const (
@@ -49,7 +50,6 @@ func authenticate(image string) *DockerAuth {
 	var auth DockerAuth
 	json.Unmarshal(buf, &auth)
 	return &auth
-
 }
 
 func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
@@ -68,6 +68,10 @@ func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		log.Fatal(fmt.Sprintf("Response has a non 200 status code %d", resp.StatusCode))
+	}
+
 	buf, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
@@ -78,8 +82,35 @@ func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
 	return &manifest
 }
 
-func downloadLayer() {
+func downloadLayer(auth *DockerAuth, url, outfile string) {
+	output, err := os.Create(outfile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer output.Close()
 
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json")
+	req.Header.Set("Authorization", "Bearer "+auth.Token)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Fatal(fmt.Sprintf("Response has a non 200 status code %d", resp.StatusCode))
+	}
+
+	_, err = io.Copy(output, resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func extract() {
