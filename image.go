@@ -35,7 +35,7 @@ type DockerManifest struct {
 	} `json:"layers"`
 }
 
-func Authenticate(image string) *DockerAuth {
+func authenticate(image string) *DockerAuth {
 	url := fmt.Sprintf(authUrl, image)
 	response, err := http.Get(url)
 	if err != nil {
@@ -52,7 +52,7 @@ func Authenticate(image string) *DockerAuth {
 
 }
 
-func GetManifest(auth *DockerAuth, image, version string) *DockerManifest {
+func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
 	url := fmt.Sprintf(manifestUrl, image, version)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
@@ -67,6 +67,7 @@ func GetManifest(auth *DockerAuth, image, version string) *DockerManifest {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
+
 	buf, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
