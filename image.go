@@ -77,3 +77,15 @@ func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
 	json.Unmarshal(buf, &manifest)
 	return &manifest
 }
+
+func downloadLayer() {
+
+}
+
+func extract() {
+
+}
+
+func Downlod() {
+
+}
