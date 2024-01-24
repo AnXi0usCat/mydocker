@@ -86,6 +86,6 @@ func extract() {
 
 }
 
-func Downlod() {
+func Download() {
 
 }
