@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 const (
@@ -129,6 +131,19 @@ func extract(filename, dest string) {
 	}
 }
 
-func Download() {
+func Download(image, dest string) {
+	name, version, ok := strings.Cut(image, ":")
+	if !ok {
+		name = image
+		version = "latest"
+	}
+	auth := authenticate(name)
+	manifest := getManifest(auth, image, version)
 
+	for i, layer := range manifest.Layers {
+		url := fmt.Sprintf(layerUrl, name, layer.Digest)
+		outfile := filepath.Join(dest, fmt.Sprintf("layer-%d.tar", i))
+		downloadLayer(auth, url, outfile)
+		extract(outfile, dest)
+	}
 }
