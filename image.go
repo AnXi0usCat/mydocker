@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 )
 
 const (
@@ -68,6 +69,7 @@ func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
 	}
 	defer resp.Body.Close()
 
+	// error could be nil but the response still might have a non 200 status
 	if resp.StatusCode != http.StatusOK {
 		log.Fatal(fmt.Sprintf("Response has a non 200 status code %d", resp.StatusCode))
 	}
@@ -103,6 +105,7 @@ func downloadLayer(auth *DockerAuth, url, outfile string) {
 	}
 	defer resp.Body.Close()
 
+	// error could be nil but the response still might have a non 200 status
 	if resp.StatusCode != http.StatusOK {
 		log.Fatal(fmt.Sprintf("Response has a non 200 status code %d", resp.StatusCode))
 	}
@@ -113,8 +116,17 @@ func downloadLayer(auth *DockerAuth, url, outfile string) {
 	}
 }
 
-func extract() {
-
+func extract(filename, dest string) {
+	cmd := exec.Command("tar", "-xzf", filename, "-C", dest)
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// delete archive
+	err = os.Remove(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func Download() {
