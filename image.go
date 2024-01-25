@@ -46,12 +46,18 @@ func authenticate(image string) *DockerAuth {
 		log.Fatal(err)
 	}
 	defer response.Body.Close()
+
 	buf, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	var auth DockerAuth
 	json.Unmarshal(buf, &auth)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &auth
 }
 
@@ -82,7 +88,11 @@ func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
 	}
 
 	var manifest DockerManifest
-	json.Unmarshal(buf, &manifest)
+	err = json.Unmarshal(buf, &manifest)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &manifest
 }
 
