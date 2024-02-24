@@ -13,5 +13,5 @@ vet: fmt
 .PHONY:vet
 
 build: vet
-	go build types.go
+	GOOS=linux GOARCH=amd64 go build -o mydocker ./...
 .PHONY:build
