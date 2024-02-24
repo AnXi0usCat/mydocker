@@ -18,6 +18,8 @@ const (
 	layerUrl    = "https://registry.hub.docker.com/v2/library/%s/blobs/%s"
 )
 
+type ContentType string
+
 type DockerAuth struct {
 	Token     string `json:"token"`
 	ExpiresIn int    `json:"expiresIn"`
@@ -25,19 +27,36 @@ type DockerAuth struct {
 }
 
 type DockerManifest struct {
-	SchemaVersion int    `json:"schemaVersion"`
-	MediaType     string `json:"mediaType"`
-	Config        struct {
+	SchemaVersion int         `json:"schemaVersion"`
+	MediaType     ContentType `json:"mediaType"`
+
+	Config struct {
 		MediaType string `json:"mediaType"`
 		Digest    string `json:"digest"`
 		Size      int    `json:"size"`
 	} `json:"config"`
+
 	Layers []struct {
 		MediaType string `json:"mediaType"`
 		Digest    string `json:"digest"`
 		Size      int    `json:"size"`
 	} `json:"layers"`
+
+	Manifests []struct {
+		MediaType ContentType `json:"mediaType"`
+		Digest    string      `json:"digest"`
+		Platform  struct {
+			Architecture string `json:"architecture"`
+			OS           string `json:"OS"`
+		} `json:"platform"`
+	} `json:"manifests"`
 }
+
+const (
+	ImageManifestV2 ContentType = "application/vnd.docker.distribution.manifest.v2+json"
+	ImageManifestV1 ContentType = "application/vnd.oci.image.manifest.v1+json"
+	ManifestList    ContentType = "application/vnd.oci.image.index.v1+json"
+)
 
 func authenticate(image string) *DockerAuth {
 	url := fmt.Sprintf(authUrl, image)
@@ -64,14 +83,14 @@ func authenticate(image string) *DockerAuth {
 	return &auth
 }
 
-func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
+func getManifest(auth *DockerAuth, image, version string, contentType ContentType) *DockerManifest {
 	url := fmt.Sprintf(manifestUrl, image, version)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json")
+	req.Header.Set("Accept", string(contentType))
 	req.Header.Set("Authorization", "Bearer "+auth.Token)
 
 	resp, err := client.Do(req)
@@ -98,8 +117,6 @@ func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
 		log.Fatal(err)
 	}
 	log.Println("Unmarshalled manifest payload to a go type")
-	log.Println(manifest)
-
 	return &manifest
 }
 
@@ -115,7 +132,6 @@ func downloadLayer(auth *DockerAuth, url, outfile string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json")
 	req.Header.Set("Authorization", "Bearer "+auth.Token)
 
 	resp, err := client.Do(req)
@@ -159,7 +175,17 @@ func download(image, dest string) {
 	log.Println(fmt.Sprintf("Resolving: image %s, version %s", name, version))
 
 	auth := authenticate(name)
-	manifest := getManifest(auth, image, version)
+	manifest := getManifest(auth, image, version, ImageManifestV2)
+
+	switch manifest.MediaType {
+	case ManifestList:
+		log.Println("Recieved manifest list, getting the first image from the list")
+		manifest = getManifest(auth, image, manifest.Manifests[0].Digest, manifest.Manifests[0].MediaType)
+	case ImageManifestV1:
+	case ImageManifestV2:
+	default:
+		log.Fatal("Unsupported content type for the Docker Manifests")
+	}
 	log.Println("manifest download complete")
 
 	for i, layer := range manifest.Layers {
@@ -172,7 +198,7 @@ func download(image, dest string) {
 }
 
 func delete(dest string) {
-	err := os.RemoveAll(dest + "/")
+	err := os.RemoveAll(dest)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Failed to remove working directory %s", err))
 	}
