@@ -45,18 +45,21 @@ func authenticate(image string) *DockerAuth {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Authenticated successfully")
 	defer response.Body.Close()
 
 	buf, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Read authentiction response payload")
 
 	var auth DockerAuth
 	json.Unmarshal(buf, &auth)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Unamrshalled json payload from the auth endpoint")
 
 	return &auth
 }
@@ -75,23 +78,26 @@ func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Successfully returned response from manifest endpoint")
 	defer resp.Body.Close()
 
 	// error could be nil but the response still might have a non 200 status
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal(fmt.Sprintf("Response has a non 200 status code %d", resp.StatusCode))
+		log.Fatal(fmt.Sprintf("Response from the manifest has a non 200 status code %d", resp.StatusCode))
 	}
 
 	buf, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("successfully read the manifest payload")
 
 	var manifest DockerManifest
 	err = json.Unmarshal(buf, &manifest)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Unmarshalled manifest payload to a go type")
 
 	return &manifest
 }
@@ -115,17 +121,19 @@ func downloadLayer(auth *DockerAuth, url, outfile string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Successful response from the image endpoint")
 	defer resp.Body.Close()
 
 	// error could be nil but the response still might have a non 200 status
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal(fmt.Sprintf("Response has a non 200 status code %d", resp.StatusCode))
+		log.Fatal(fmt.Sprintf("Response from dockerhub has a non 200 status code %d", resp.StatusCode))
 	}
 
 	_, err = io.Copy(output, resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Downlaoded layer")
 }
 
 func extract(filename, dest string) {
@@ -141,16 +149,20 @@ func extract(filename, dest string) {
 	}
 }
 
-func Download(image, dest string) {
+func download(image, dest string) {
 	name, version, ok := strings.Cut(image, ":")
 	if !ok {
 		name = image
 		version = "latest"
 	}
+	log.Println(fmt.Sprintf("Resolving: image %s, version %s", name, version))
+
 	auth := authenticate(name)
 	manifest := getManifest(auth, image, version)
+	log.Println("manifest download complete")
 
 	for i, layer := range manifest.Layers {
+		log.Println(fmt.Sprintf("Downloading layer %d with  digest %s", i, layer.Digest))
 		url := fmt.Sprintf(layerUrl, name, layer.Digest)
 		outfile := filepath.Join(dest, fmt.Sprintf("layer-%d.tar", i))
 		downloadLayer(auth, url, outfile)
