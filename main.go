@@ -13,8 +13,7 @@ import (
 const jail = "jail"
 
 func createRootDir() (string, error) {
-	command := exec.Command("mkdir", "-p", jail)
-	err := command.Run()
+	err := os.MkdirAll(jail, os.FileMode(0777))
 	if err != nil {
 		log.Printf("Failed to create a temp directory %v", err)
 		return "", err
@@ -49,10 +48,14 @@ func run() error {
 	cmd.Stderr = os.Stderr
 
 	err = cmd.Run()
+	// remove the working directory after child completes
+	delete(jail)
+
 	if err != nil {
 		log.Printf("Encountered an error while doing `execute as a child` %s", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -90,8 +93,6 @@ func main() {
 		run()
 	case "child":
 		err = child()
-		log.Printf("Removing working directory")
-		delete(jail)
 	default:
 		panic("Undefined command " + os.Args[1])
 	}

@@ -98,6 +98,7 @@ func getManifest(auth *DockerAuth, image, version string) *DockerManifest {
 		log.Fatal(err)
 	}
 	log.Println("Unmarshalled manifest payload to a go type")
+	log.Println(manifest)
 
 	return &manifest
 }
@@ -162,7 +163,7 @@ func download(image, dest string) {
 	log.Println("manifest download complete")
 
 	for i, layer := range manifest.Layers {
-		log.Println(fmt.Sprintf("Downloading layer %d with  digest %s", i, layer.Digest))
+		log.Println(layer.Digest)
 		url := fmt.Sprintf(layerUrl, name, layer.Digest)
 		outfile := filepath.Join(dest, fmt.Sprintf("layer-%d.tar", i))
 		downloadLayer(auth, url, outfile)
@@ -171,7 +172,7 @@ func download(image, dest string) {
 }
 
 func delete(dest string) {
-	err := os.RemoveAll(dest)
+	err := os.RemoveAll(dest + "/")
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Failed to remove working directory %s", err))
 	}
