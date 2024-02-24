@@ -169,3 +169,10 @@ func download(image, dest string) {
 		extract(outfile, dest)
 	}
 }
+
+func delete(dest string) {
+	err := os.RemoveAll(dest)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Failed to remove working directory %s", err))
+	}
+}
