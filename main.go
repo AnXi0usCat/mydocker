@@ -90,6 +90,8 @@ func main() {
 		run()
 	case "child":
 		err = child()
+		log.Printf("Removing working directory")
+		delete(jail)
 	default:
 		panic("Undefined command " + os.Args[1])
 	}
