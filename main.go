@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package main
 
@@ -23,35 +22,6 @@ func createRootDir() (string, error) {
 	return jail, nil
 }
 
-func copyDir(command string, jail string) {
-	mkDirC := exec.Command("mkdir", "-p", jail+"/usr/local/bin")
-	mkDirC.Stdout = os.Stdout
-	mkDirC.Stderr = os.Stderr
-
-	err := mkDirC.Run()
-	if err != nil {
-		log.Printf("Failed on mkdir -p %v", jail)
-		panic("Failed on mkdir -p " + jail)
-	}
-
-	// locaty full path of command
-	path, err := exec.LookPath(command)
-	if err != nil {
-		log.Printf("Failed to locate full path of %v on the host os", command)
-	}
-
-	cp := exec.Command("cp", path, jail+"/usr/local/bin")
-	cp.Stdout = os.Stdout
-	cp.Stderr = os.Stderr
-	cp.Stdin = os.Stdin
-
-	err = cp.Run()
-	if err != nil {
-		log.Printf("Failed on cp %v /usr/local/bin", command)
-		panic("Failed on cp %v /usr/local/bin" + jail)
-	}
-}
-
 func run() error {
 	image := os.Args[2]
 	command := os.Args[3]
@@ -64,7 +34,7 @@ func run() error {
 		log.Printf("could not create a target directory, stopping execution")
 		return err
 	}
-	copyDir(command, jail)
+	download(image, jail)
 
 	cmd := exec.Command("/proc/self/exe", append([]string{"child", image, command}, args...)...)
 
@@ -72,12 +42,15 @@ func run() error {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID,
 	}
+	log.Printf("Syscall to clone PID's")
+
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	err = cmd.Run()
 	if err != nil {
+		log.Printf("Encountered an error while doing `execute as a child` %s", err)
 		return err
 	}
 	return nil
