@@ -173,12 +173,12 @@ func download(image, dest string) {
 	log.Println(fmt.Sprintf("Resolving: image %s, version %s", name, version))
 
 	auth := authenticate(name)
-	manifest := getManifest(auth, image, version, ImageManifestV2)
+	manifest := getManifest(auth, name, version, ImageManifestV2)
 
 	switch manifest.MediaType {
 	case ManifestList:
 		log.Println("Recieved manifest list, getting the first image from the list")
-		manifest = getManifest(auth, image, manifest.Manifests[0].Digest, manifest.Manifests[0].MediaType)
+		manifest = getManifest(auth, name, manifest.Manifests[0].Digest, manifest.Manifests[0].MediaType)
 	case ImageManifestV1:
 	case ImageManifestV2:
 	default:
