@@ -138,7 +138,6 @@ func downloadLayer(auth *DockerAuth, url, outfile string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("Successful response from the image endpoint")
 	defer resp.Body.Close()
 
 	// error could be nil but the response still might have a non 200 status
@@ -150,7 +149,6 @@ func downloadLayer(auth *DockerAuth, url, outfile string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("Downlaoded layer")
 }
 
 func extract(filename, dest string) {
