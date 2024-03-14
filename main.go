@@ -5,16 +5,20 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	"time"
 )
 
 const jail = "jail"
-const cgroupPath = "/sys/fs/cgroup/container"
+const cgroupPath = "/sys/fs/cgroup/"
+const cgNameLen = 32
+const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-func createRootDir() (string, error) {
+func root() (string, error) {
 	err := os.MkdirAll(jail, os.FileMode(0777))
 	if err != nil {
 		log.Printf("Failed to create a temp directory %v", err)
@@ -23,23 +27,39 @@ func createRootDir() (string, error) {
 	return jail, nil
 }
 
+func name() string {
+	s := rand.NewSource(time.Now().UnixMilli())
+	r := rand.New(s)
+	b := make([]byte, cgNameLen)
+
+	for i := range b {
+		b[i] = charset[r.Intn(len(charset))]
+	}
+	return string(b)
+}
+
 func cgroup() error {
 	pid := os.Getgid()
 
+	// generate new cgroup name
+	cname := name()
+	cgPathName := cgroupPath + cname
+	log.Printf("Creating a new cgroup for container with name: %v\n", cname)
+
 	// create a new cgroup
-	if err := os.Mkdir(cgroupPath, 0755); err != nil {
+	if err := os.Mkdir(cgPathName, 0755); err != nil {
 		fmt.Printf("Error creating groups: %v\n", err)
 		return err
 	}
 
 	// create a file with max pid limit
-	pidsMaxPath := filepath.Join(cgroupPath, "pids.max")
+	pidsMaxPath := filepath.Join(cgPathName, "pids.max")
 	if err := os.WriteFile(pidsMaxPath, []byte("20"), 0644); err != nil {
 		fmt.Printf("Error creating pids.max file: %v\n", err)
 		return err
 	}
 	// add acurrent process to the group
-	cgroupProcsPath := filepath.Join(cgroupPath, "cgroup.procs")
+	cgroupProcsPath := filepath.Join(cgPathName, "cgroup.procs")
 	if err := os.WriteFile(cgroupProcsPath, []byte(fmt.Sprintf("%v", pid)), 0644); err != nil {
 		fmt.Printf("Error creating cgroup.procs file %v\n", err)
 		return err
@@ -55,7 +75,7 @@ func run() error {
 
 	fmt.Printf("Running command %v with args %v as %v\n", command, args, os.Getgid())
 
-	jail, err := createRootDir()
+	jail, err := root()
 	if err != nil {
 		log.Printf("could not create a target directory, stopping execution")
 		return err
