@@ -15,6 +15,7 @@ import (
 const jail = "jail"
 const cgroupPath = "/sys/fs/cgroup/"
 const cgNameLen = 64
+const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 func root() (string, error) {
 	err := os.MkdirAll(jail, os.FileMode(0777))
@@ -25,10 +26,15 @@ func root() (string, error) {
 	return jail, nil
 }
 
-func name() (string, error) {
-    const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+func name() string {
+    s := rand.NewSource(time.Now().UnixMilli())
+    r := rand.New(s)
+    b := make([]byte, cgNameLen)
 
-    return "random", nil
+    for i := range b {
+        b[i] = charset[r.Intn(len(charset))]
+    }
+    return string(b)
 }
 
 func cgroup() error {
