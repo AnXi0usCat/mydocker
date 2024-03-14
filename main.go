@@ -38,11 +38,9 @@ func name() string {
 	return string(b)
 }
 
-func cgroup() error {
+func cgroup(cname string) error {
 	pid := os.Getgid()
 
-	// generate new cgroup name
-	cname := name()
 	cgPathName := cgroupPath + cname
 	log.Printf("Creating a new cgroup for container with name: %v\n", cname)
 
@@ -110,7 +108,10 @@ func run() error {
 func child() error {
 	fmt.Printf("Running command %v with args %v as %v\n", os.Args[3], os.Args[4:len(os.Args)], os.Getpid())
 
-	err := cgroup()
+	// generate new cgroup name
+	cname := name()
+	// create a new cgroup
+	err := cgroup(cname)
 	if err != nil {
 		log.Printf("Failed to create cgroup direcotry %s", err)
 		return err
