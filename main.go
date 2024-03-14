@@ -15,7 +15,7 @@ import (
 
 const jail = "jail"
 const cgroupPath = "/sys/fs/cgroup/"
-const cgNameLen = 64
+const cgNameLen = 32
 const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 func root() (string, error) {
@@ -44,7 +44,7 @@ func cgroup() error {
 	// generate new cgroup name
 	cname := name()
 	cgPathName := cgroupPath + cname
-	log.Printf("Creating a new cgroup for container with name:%v\n", cname)
+	log.Printf("Creating a new cgroup for container with name: %v\n", cname)
 
 	// create a new cgroup
 	if err := os.Mkdir(cgPathName, 0755); err != nil {
