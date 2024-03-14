@@ -1,26 +1,34 @@
-//go:build linux
 
 package main
 
 import (
 	"fmt"
 	"log"
+    "math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
+    "time"
 )
 
 const jail = "jail"
-const cgroupPath = "/sys/fs/cgroup/container"
+const cgroupPath = "/sys/fs/cgroup/"
+const cgNameLen = 64
 
-func createRootDir() (string, error) {
+func root() (string, error) {
 	err := os.MkdirAll(jail, os.FileMode(0777))
 	if err != nil {
 		log.Printf("Failed to create a temp directory %v", err)
 		return "", err
 	}
 	return jail, nil
+}
+
+func name() (string, error) {
+    const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+    return "random", nil
 }
 
 func cgroup() error {
@@ -55,7 +63,7 @@ func run() error {
 
 	fmt.Printf("Running command %v with args %v as %v\n", command, args, os.Getgid())
 
-	jail, err := createRootDir()
+	jail, err := root()
 	if err != nil {
 		log.Printf("could not create a target directory, stopping execution")
 		return err
