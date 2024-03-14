@@ -7,10 +7,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 )
 
 const jail = "jail"
+const cgroupPath = "/sys/fs/cgroup/container"
 
 func createRootDir() (string, error) {
 	err := os.MkdirAll(jail, os.FileMode(0777))
@@ -19,6 +21,31 @@ func createRootDir() (string, error) {
 		return "", err
 	}
 	return jail, nil
+}
+
+func cgroup() error {
+	pid := os.Getgid()
+
+	// create a new cgroup
+	if err := os.Mkdir(cgroupPath, 0755); err != nil {
+		fmt.Printf("Error creating groups: %v\n", err)
+		return err
+	}
+
+	// create a file with max pid limit
+	pidsMaxPath := filepath.Join(cgroupPath, "pids.max")
+	if err := os.WriteFile(pidsMaxPath, []byte("20"), 0644); err != nil {
+		fmt.Printf("Error creating pids.max file: %v\n", err)
+		return err
+	}
+	// add acurrent process to the group
+	cgroupProcsPath := filepath.Join(cgroupPath, "cgroup.procs")
+	if err := os.WriteFile(cgroupProcsPath, []byte(fmt.Sprintf("%v", pid)), 0644); err != nil {
+		fmt.Printf("Error creating cgroup.procs file %v\n", err)
+		return err
+	}
+
+	return nil
 }
 
 func run() error {
@@ -62,6 +89,12 @@ func run() error {
 
 func child() error {
 	fmt.Printf("Running command %v with args %v as %v\n", os.Args[3], os.Args[4:len(os.Args)], os.Getpid())
+
+	err := cgroup()
+	if err != nil {
+		log.Printf("Failed to create cgroup direcotry %s", err)
+		return err
+	}
 	// isolate child process hostname
 	syscall.Sethostname([]byte("container"))
 	// isolate filsystem
@@ -75,7 +108,7 @@ func child() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	syscall.Unmount("proc", 0)
 
 	if err != nil {
