@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -17,6 +18,7 @@ const jail = "jail"
 const cgroupPath = "/sys/fs/cgroup/"
 const cgNameLen = 32
 const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+const fifoPath = "/tmp/cgname"
 
 func root() (string, error) {
 	err := os.MkdirAll(jail, os.FileMode(0777))
@@ -46,24 +48,71 @@ func cgroup(cname string) error {
 
 	// create a new cgroup
 	if err := os.Mkdir(cgPathName, 0755); err != nil {
-		fmt.Printf("Error creating groups: %v\n", err)
+		log.Printf("Error creating groups: %v\n", err)
 		return err
 	}
 
 	// create a file with max pid limit
 	pidsMaxPath := filepath.Join(cgPathName, "pids.max")
 	if err := os.WriteFile(pidsMaxPath, []byte("20"), 0644); err != nil {
-		fmt.Printf("Error creating pids.max file: %v\n", err)
+		log.Printf("Error creating pids.max file: %v\n", err)
 		return err
 	}
+
 	// add acurrent process to the group
 	cgroupProcsPath := filepath.Join(cgPathName, "cgroup.procs")
 	if err := os.WriteFile(cgroupProcsPath, []byte(fmt.Sprintf("%v", pid)), 0644); err != nil {
-		fmt.Printf("Error creating cgroup.procs file %v\n", err)
+		log.Printf("Error creating cgroup.procs file %v\n", err)
+		return err
+	}
+
+	if err := wFifoPipe(fifoPath, cname); err != nil {
+		log.Printf("Failed to write to a fifo pipe %v\n", err)
+		return err
+	}
+	return nil
+}
+
+func wFifoPipe(fifoPath, cgname string) error {
+	// created a named pipe to pass the cgroup name to parent
+	if err := syscall.Mkfifo(fifoPath, 0666); err != nil && !os.IsExist(err) {
+		log.Printf("Failed to create named pipe: %v", err)
+		return err
+	}
+
+	// Open the fifo for writing
+	fifo, err := os.OpenFile(fifoPath, os.O_WRONLY, os.ModeNamedPipe)
+	if err != nil {
+		log.Printf("Failed to open named pipe for writing: %v", err)
+		return err
+	}
+	defer fifo.Close()
+
+	// Write data to the fifo
+	if _, err := fifo.Write([]byte(cgname)); err != nil {
+		log.Printf("Failed to write to named pipe: %v", err)
 		return err
 	}
 
 	return nil
+}
+
+func rFifoPipe() (string, error) {
+	// Open the fifo for reading
+	fifo, err := os.Open(fifoPath)
+	if err != nil {
+		log.Printf("Failed to open named pipe for reading: %v", err)
+		return "", err
+	}
+	defer fifo.Close()
+
+	// Read data from the fifo
+	data, err := io.ReadAll(fifo)
+	if err != nil {
+		log.Printf("Failed to read from named pipe: %v", err)
+		return "", err
+	}
+	return string(data), nil
 }
 
 func run() error {
@@ -71,7 +120,7 @@ func run() error {
 	command := os.Args[3]
 	args := os.Args[4:len(os.Args)]
 
-	fmt.Printf("Running command %v with args %v as %v\n", command, args, os.Getgid())
+	log.Printf("Running command %v with args %v as %v\n", command, args, os.Getgid())
 
 	jail, err := root()
 	if err != nil {
@@ -93,14 +142,30 @@ func run() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err = cmd.Run()
+	// non blocking
+	if err = cmd.Start(); err != nil {
+		log.Printf("Failed starting the child command %v\n", err)
+		return err
+	}
+
+	cgname, err := rFifoPipe()
+	if err != nil {
+		log.Printf("Failed to read the cgroup name from the fifo pipe %v\n", err)
+		return err
+	}
+
+	// Wait for the child process to finish
+	err = cmd.Wait()
+
 	// remove the working directory after child completes
 	delete(jail)
 
 	if err != nil {
-		log.Printf("Encountered an error while doing `execute as a child` %s", err)
+		fmt.Printf("Child process exited with error: %v\n", err)
 		return err
 	}
+
+	log.Printf("Child process cgroup name is %v", cgname)
 
 	return nil
 }
@@ -109,9 +174,9 @@ func child() error {
 	fmt.Printf("Running command %v with args %v as %v\n", os.Args[3], os.Args[4:len(os.Args)], os.Getpid())
 
 	// generate new cgroup name
-	cname := name()
+	cgname := name()
 	// create a new cgroup
-	err := cgroup(cname)
+	err := cgroup(cgname)
 	if err != nil {
 		log.Printf("Failed to create cgroup direcotry %s", err)
 		return err
