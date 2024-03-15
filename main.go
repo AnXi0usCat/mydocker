@@ -46,20 +46,20 @@ func cgroup(cname string) error {
 
 	// create a new cgroup
 	if err := os.Mkdir(cgPathName, 0755); err != nil {
-		fmt.Printf("Error creating groups: %v\n", err)
+		log.Printf("Error creating groups: %v\n", err)
 		return err
 	}
 
 	// create a file with max pid limit
 	pidsMaxPath := filepath.Join(cgPathName, "pids.max")
 	if err := os.WriteFile(pidsMaxPath, []byte("20"), 0644); err != nil {
-		fmt.Printf("Error creating pids.max file: %v\n", err)
+		log.Printf("Error creating pids.max file: %v\n", err)
 		return err
 	}
 	// add acurrent process to the group
 	cgroupProcsPath := filepath.Join(cgPathName, "cgroup.procs")
 	if err := os.WriteFile(cgroupProcsPath, []byte(fmt.Sprintf("%v", pid)), 0644); err != nil {
-		fmt.Printf("Error creating cgroup.procs file %v\n", err)
+		log.Printf("Error creating cgroup.procs file %v\n", err)
 		return err
 	}
 
@@ -71,7 +71,7 @@ func run() error {
 	command := os.Args[3]
 	args := os.Args[4:len(os.Args)]
 
-	fmt.Printf("Running command %v with args %v as %v\n", command, args, os.Getgid())
+	log.Printf("Running command %v with args %v as %v\n", command, args, os.Getgid())
 
 	jail, err := root()
 	if err != nil {
@@ -106,7 +106,7 @@ func run() error {
 }
 
 func child() error {
-	fmt.Printf("Running command %v with args %v as %v\n", os.Args[3], os.Args[4:len(os.Args)], os.Getpid())
+	log.Printf("Running command %v with args %v as %v\n", os.Args[3], os.Args[4:len(os.Args)], os.Getpid())
 
 	// generate new cgroup name
 	cname := name()
