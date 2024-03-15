@@ -38,11 +38,11 @@ func name() string {
 	return string(b)
 }
 
-func cgroup(cname string) error {
+func cgroup(cgname string) error {
 	pid := os.Getgid()
 
-	cgPathName := cgroupPath + cname
-	log.Printf("Creating a new cgroup for container with name: %v\n", cname)
+	cgPathName := cgroupPath + cgname
+	log.Printf("Creating a new cgroup for container with name: %v\n", cgname)
 
 	// create a new cgroup
 	if err := os.Mkdir(cgPathName, 0755); err != nil {
@@ -62,8 +62,33 @@ func cgroup(cname string) error {
 		log.Printf("Error creating cgroup.procs file %v\n", err)
 		return err
 	}
-
 	return nil
+}
+
+func deleteCgroupIfPossible(cgname string) {
+	cgpath := filepath.Join(cgroupPath, cgname, "cgroup.procs")
+
+	_, err := os.Stat(cgpath)
+	if os.IsNotExist(err) { // no file present, noting to delete
+		log.Printf("No %s file present, nothing to delete\n", cgpath)
+		return
+	}
+
+	procs, err := os.ReadFile(cgpath)
+	if err != nil {
+		log.Printf("Encountered an error reading the contents of the cgroup.procs file, exiting\n")
+		return
+	}
+
+	if len(procs) > 0 {
+		log.Printf("cgroup.procs file is not empty, cannot remove cgroup")
+		return
+	} else {
+		cgdir := filepath.Join(cgroupPath, cgname)
+		if err := os.RemoveAll(cgdir); err != nil {
+			log.Printf("Failed to remove %s, error: %v", cgdir, err)
+		}
+	}
 }
 
 func run() error {
@@ -109,9 +134,9 @@ func child() error {
 	log.Printf("Running command %v with args %v as %v\n", os.Args[3], os.Args[4:len(os.Args)], os.Getpid())
 
 	// generate new cgroup name
-	cname := name()
+	cgname := name()
 	// create a new cgroup
-	err := cgroup(cname)
+	err := cgroup(cgname)
 	if err != nil {
 		log.Printf("Failed to create cgroup direcotry %s", err)
 		return err
