@@ -62,7 +62,6 @@ func cgroup(cgname string) error {
 		log.Printf("Error creating cgroup.procs file %v\n", err)
 		return err
 	}
-
 	return nil
 }
 
@@ -71,7 +70,7 @@ func deleteCgroupIfPossible(cgname string) {
 
 	_, err := os.Stat(cgpath)
 	if os.IsNotExist(err) { // no file present, noting to delete
-		log.Printf("No cgroup.procs file present, nothing to delete\n")
+		log.Printf("No %s file present, nothing to delete\n", cgpath)
 		return
 	}
 
@@ -157,9 +156,6 @@ func child() error {
 
 	err = cmd.Run()
 	syscall.Unmount("proc", 0)
-
-	// try to remove the cgroup
-	deleteCgroupIfPossible(cgname)
 
 	if err != nil {
 		return err
